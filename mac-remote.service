@@ -5,8 +5,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/mac-remote
-ExecStart=/opt/mac-remote/server.sh
+WorkingDirectory=/opt/mywork/mytest/mac-remote
+ExecStart=/opt/mywork/mytest/mac-remote/server.sh
 Restart=on-failure
 RestartSec=3
 User=root
