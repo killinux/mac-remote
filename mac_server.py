@@ -9,6 +9,8 @@ import json, os, sys, uuid, time, threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 TOKEN = os.environ.get("TOKEN", "change-me")
+FILES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "files")
+os.makedirs(FILES_DIR, exist_ok=True)
 
 _tasks = {}
 _pending = []
@@ -80,11 +82,43 @@ class H(BaseHTTPRequestHandler):
                 t["ts"] = time.time()
             return self._json(200, {"ok": True})
 
+        if self.path.startswith("/files/upload"):
+            n = int(self.headers.get("Content-Length") or 0)
+            fname = self.headers.get("X-Filename", uuid.uuid4().hex)
+            if not n:
+                return self._json(400, {"error": "empty body"})
+            data = self.rfile.read(n)
+            safe_name = os.path.basename(fname)
+            fpath = os.path.join(FILES_DIR, safe_name)
+            with open(fpath, "wb") as f:
+                f.write(data)
+            return self._json(200, {"ok": True, "path": fpath, "size": len(data)})
+
         self._json(404, {"error": "not found"})
 
     def do_GET(self):
         if not self._auth():
             return
+
+        if self.path.startswith("/files/"):
+            fname = self.path[len("/files/"):]
+            safe_name = os.path.basename(fname)
+            fpath = os.path.join(FILES_DIR, safe_name)
+            if not os.path.isfile(fpath):
+                return self._json(404, {"error": "file not found"})
+            size = os.path.getsize(fpath)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Content-Length", str(size))
+            self.end_headers()
+            with open(fpath, "rb") as f:
+                while True:
+                    chunk = f.read(65536)
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+            return
+
         if self.path.startswith("/tasks/next"):
             deadline = time.time() + 25
             while time.time() < deadline:

@@ -27,7 +27,32 @@ def _req(method, path, body=None):
         return json.loads(r.read() or b"{}")
 
 
+def upload_file(filepath):
+    filepath = os.path.expanduser(filepath)
+    if not os.path.isfile(filepath):
+        return {"stdout": "", "stderr": f"file not found: {filepath}", "rc": 1}
+    fname = os.path.basename(filepath)
+    try:
+        with open(filepath, "rb") as f:
+            data = f.read()
+        req = urllib.request.Request(
+            SERVER_URL + "/files/upload", data=data, method="POST",
+            headers={
+                "X-Token": TOKEN,
+                "Content-Type": "application/octet-stream",
+                "X-Filename": fname,
+            },
+        )
+        with urllib.request.urlopen(req, timeout=120) as r:
+            resp = json.loads(r.read() or b"{}")
+        return {"stdout": f"uploaded {fname} ({len(data)} bytes) -> {resp.get('path','')}", "stderr": "", "rc": 0}
+    except Exception as e:
+        return {"stdout": "", "stderr": f"upload error: {e}", "rc": 1}
+
+
 def run(cmd):
+    if cmd.startswith("__upload__:"):
+        return upload_file(cmd[len("__upload__:"):])
     try:
         p = subprocess.run(
             cmd, shell=True, capture_output=True, text=True,
