@@ -1,0 +1,15 @@
+[Unit]
+Description=mac-remote server (task queue for Claude -> Mac agent)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/mac-remote
+ExecStart=/opt/mac-remote/server.sh
+Restart=on-failure
+RestartSec=3
+User=root
+
+[Install]
+WantedBy=multi-user.target
